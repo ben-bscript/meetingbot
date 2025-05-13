@@ -57,8 +57,12 @@ pulseaudio \
 pulseaudio-utils \
 xserver-xephyr \
 x11-xserver-utils \
-pulseaudio \
+fluxbox \
+ffmpeg \
 && rm -rf /var/lib/apt/lists/*
+
+# Create recording directory with proper permissions
+RUN mkdir -p /rec && chown -R meetbot:meetbot /rec && chmod 777 /rec
 
 #Install pnpm globally
 RUN npm install -g pnpm
