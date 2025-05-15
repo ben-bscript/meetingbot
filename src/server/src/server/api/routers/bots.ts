@@ -87,6 +87,8 @@ export const botsRouter = createTRPCRouter({
             everyoneLeftTimeout: 300000, // 5 minutes
           },
           callbackUrl: input.callbackUrl, // Credit to @martinezpl for this line -- cannot merge at time of writing due to capstone requirements
+          s3Key: input.s3Key,
+          s3BucketName: input.s3BucketName,
         };
 
         const result = await ctx.db.insert(bots).values(dbInput).returning();

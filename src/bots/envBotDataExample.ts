@@ -31,6 +31,8 @@ const botData: BotConfig = {
     everyoneLeftTimeout: 3600000,
   },
   callbackUrl: "<CALLBACK_URL>",
+  s3Key: "recordings/custom-recording-name.webm", // Optional: custom S3 key for the recording
+  s3BucketName: "my-recording-bucket", // Optional: custom S3 bucket name
 };
 
 /*

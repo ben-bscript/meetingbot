@@ -252,6 +252,9 @@ export const bots = pgTable("bots", {
   heartbeatInterval: integer("heartbeat_interval").notNull(),
   automaticLeave: json("automatic_leave").$type<AutomaticLeave>().notNull(),
   callbackUrl: varchar("callback_url", { length: 1024 }),
+  // s3 config
+  s3Key: varchar("s3_key", { length: 1024 }),
+  s3BucketName: varchar("s3_bucket_name", { length: 255 }),
   // timestamps
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -270,6 +273,14 @@ export const insertBotSchema = z.object({
     .url()
     .optional()
     .describe("URL to receive bot event notifications"),
+  s3Key: z
+    .string()
+    .optional()
+    .describe("Custom S3 key for storing the recording"),
+  s3BucketName: z
+    .string()
+    .optional()
+    .describe("Custom S3 bucket name for storing the recording"),
 });
 export type InsertBotType = z.infer<typeof insertBotSchema>;
 
@@ -295,6 +306,14 @@ export const botConfigSchema = z.object({
     .url()
     .optional()
     .describe("URL to receive bot event notifications"),
+  s3Key: z
+    .string()
+    .optional()
+    .describe("Custom S3 key for storing the recording"),
+  s3BucketName: z
+    .string()
+    .optional()
+    .describe("Custom S3 bucket name for storing the recording"),
 });
 export type BotConfig = z.infer<typeof botConfigSchema>;
 

@@ -94,6 +94,8 @@ export async function deployBot({
       heartbeatInterval: bot.heartbeatInterval,
       automaticLeave: bot.automaticLeave,
       callbackUrl: bot.callbackUrl ?? undefined,
+      s3Key: bot.s3Key ?? undefined,
+      s3BucketName: bot.s3BucketName ?? undefined,
     };
 
     if (dev) {

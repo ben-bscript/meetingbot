@@ -73,6 +73,8 @@ describe('S3Client Upload Tests', () => {
             meetingInfo: {
                 platform: 'mock-platform',
             },
+            s3Key: 'custom-s3-key',
+            s3BucketName: 'custom-bucket-name',
         } as unknown as BotConfig;
         const mockOnEvent = async (eventType: string, data?: any) => { /* mock event handler */ };
         

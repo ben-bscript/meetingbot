@@ -27,6 +27,8 @@ export type BotConfig = {
   heartbeatInterval: number;
   automaticLeave: AutomaticLeave;
   callbackUrl?: string;
+  s3Key?: string;
+  s3BucketName?: string;
 };
 
 export enum Status {

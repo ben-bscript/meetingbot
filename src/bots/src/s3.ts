@@ -85,15 +85,15 @@ export async function uploadRecordingToS3(s3Client: S3Client, bot: Bot): Promise
         }
     }
 
-    // Create UUID and initialize key
+    // Use s3Key from bot settings if provided, otherwise generate a UUID
     const uuid = randomUUID();
     const contentType = bot.getContentType();
-    const key = `recordings/${uuid}-${bot.settings.meetingInfo.platform
-        }-recording.${contentType.split("/")[1]}`;
+    const key = bot.settings.s3Key || `recordings/${uuid}-${bot.settings.meetingInfo.platform}-recording.${contentType.split("/")[1]}`;
 
     try {
+        const bucketName = bot.settings.s3BucketName || process.env.AWS_BUCKET_NAME!;
         const commandObjects = {
-            Bucket: process.env.AWS_BUCKET_NAME!,
+            Bucket: bucketName,
             Key: key,
             Body: fileContent,
             ContentType: contentType,
@@ -101,7 +101,7 @@ export async function uploadRecordingToS3(s3Client: S3Client, bot: Bot): Promise
 
         const putCommand = new PutObjectCommand(commandObjects);
         await s3Client.send(putCommand);
-        console.log(`Successfully uploaded recording to S3: ${key}`);
+        console.log(`Successfully uploaded recording to S3: ${key} in bucket ${bucketName}`);
 
         // Clean up local file
         await fsPromises.unlink(filePath);
