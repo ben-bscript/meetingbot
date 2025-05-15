@@ -136,7 +136,7 @@ export class MeetsBot extends Bot {
     onEvent: (eventType: EventCode, data?: any) => Promise<void>
   ) {
     super(botSettings, onEvent);
-    this.recordingPath = path.resolve('/rec/recording.mp4');
+    this.recordingPath = path.resolve('/rec/recording.mp3');
 
     this.browserArgs = [
       "--incognito",
@@ -188,7 +188,7 @@ export class MeetsBot extends Bot {
    * @returns {string} - Returns the content type of the recording file.
    */
   getContentType(): string {
-    return "video/mp4";
+    return "audio/mpeg";
   }
 
   /**
@@ -332,51 +332,31 @@ export class MeetsBot extends Bot {
    * 
    */
   getFFmpegParams() {
-
-    // For Testing (pnpm test) -- no docker x11 server running.
-    if (!fs.existsSync('/tmp/.X11-unix')) {
-      console.log('Using test ffmpeg params')
+    const audioInputFormat = "pulse";
+    const audioSource = "default";
+    const audioBitrate = "128k";
+  
+    // Fallback for environments without PulseAudio (CI/test/dev)
+    if (!fs.existsSync('/run/pulse') && !fs.existsSync('/tmp/.X11-unix')) {
+      console.log('Using fallback ffmpeg params for test environment (silent MP3)');
       return [
         '-y',
         '-f', 'lavfi',
-        '-i', 'color=c=blue:s=1280x720:r=30',
-        '-video_size', '1280x720',
-        '-preset', 'ultrafast',
-        '-c:a', 'aac',
-        '-c:v', 'libx264',
+        '-i', 'anullsrc',         // silent audio source
+        '-t', '30',               // 30 seconds of silence
+        '-acodec', 'libmp3lame',
+        '-b:a', audioBitrate,
         this.getRecordingPath()
-      ]
+      ];
     }
-
-    // Creait to @martinezpl for these ffmpeg params.
-    console.log('Loading Dockerized FFMPEG Params ...')
-
-    const videoInputFormat = "x11grab";
-    const audioInputFormat = "pulse";
-    const videoSource = ":99.0";
-    const audioSource = "default";
-    const audioBitrate = "128k";
-    const fps = "25";
-
+  
+    console.log('Using PulseAudio-only FFmpeg params for MP3 recording...');
     return [
-      '-v', 'verbose', // Verbose logging for debugging
-      "-thread_queue_size", "512", // Increase thread queue size to handle input buffering
-      "-video_size", `${SCREEN_WIDTH}x${SCREEN_HEIGHT}`, //full screen resolution
-      "-framerate", fps, // Lower frame rate to reduce CPU usage
-      "-f", videoInputFormat,
-      "-i", videoSource,
-      "-thread_queue_size", "512",
-      "-f", audioInputFormat,
-      "-i", audioSource,
-      "-c:v", "libx264", // H.264 codec for browser compatibility
-      "-pix_fmt", "yuv420p", // Ensures compatibility with most browsers
-      "-preset", "veryfast", // Use a faster preset to reduce CPU usage
-      "-crf", "28", // Increase CRF for reduced CPU usage
-      "-c:a", "aac", // AAC codec for audio compatibility
-      "-b:a", audioBitrate, // Lower audio bitrate for reduced CPU usage
-      "-vsync", "2", // Synchronize video and audio
-      "-vf", "scale=1280:720", // Ensure the video is scaled to 720p
-      "-y", this.getRecordingPath(), // Output file path
+      '-f', audioInputFormat,
+      '-i', audioSource,
+      '-acodec', 'libmp3lame',
+      '-b:a', audioBitrate,
+      '-y', this.getRecordingPath()
     ];
   }
 
