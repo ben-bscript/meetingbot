@@ -32,11 +32,24 @@ export class TeamsBot extends Bot {
     // Use the meeting URL directly if provided, otherwise construct it from individual parameters
     if (this.settings.meetingInfo.meetingUrl) {
       this.url = this.settings.meetingInfo.meetingUrl;
+      
+      // Check if suppressPrompt=true is in the URL, if not add it
+      if (!this.url.includes("suppressPrompt=true")) {
+        const urlObj = new URL(this.url);
+        urlObj.searchParams.set("suppressPrompt", "true");
+        this.url = urlObj.toString();
+      }
+      
       console.log("Using meeting URL:", this.url);
 
     } else if (this.settings.meetingInfo.meetingId && this.settings.meetingInfo.tenantId && this.settings.meetingInfo.organizerId) {
       // Fallback to the old method for backward compatibility
       this.url = `https://teams.microsoft.com/v2/?meetingjoin=true#/l/meetup-join/19:meeting_${this.settings.meetingInfo.meetingId}@thread.v2/0?context=%7b%22Tid%22%3a%22${this.settings.meetingInfo.tenantId}%22%2c%22Oid%22%3a%22${this.settings.meetingInfo.organizerId}%22%7d&anon=true`;
+      
+      // Add suppressPrompt=true to the URL
+      if (!this.url.includes("suppressPrompt=true")) {
+        this.url += this.url.includes("?") ? "&suppressPrompt=true" : "?suppressPrompt=true";
+      }
     } else {
       throw new Error("Either meetingUrl or (meetingId, tenantId, and organizerId) must be provided");
     }
