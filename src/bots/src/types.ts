@@ -1,9 +1,21 @@
 export type MeetingInfo = {
-  meetingId?: string;
-  meetingPassword?: string;
+  /**
+   * The URL of the meeting to join. For Teams meetings, this is the direct meeting URL.
+   * This is the preferred way to specify the meeting details.
+   */
   meetingUrl?: string;
+  
+  // Legacy properties, only needed if meetingUrl is not provided
+  /** @deprecated Use meetingUrl instead */
+  meetingId?: string;
+  /** @deprecated Use meetingUrl instead */
+  meetingPassword?: string;
+  /** @deprecated Use meetingUrl instead */
   organizerId?: string;
+  /** @deprecated Use meetingUrl instead */
   tenantId?: string;
+  
+  // Other properties
   messageId?: string;
   threadId?: string;
   platform?: "zoom" | "teams" | "google";

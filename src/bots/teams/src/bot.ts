@@ -28,7 +28,19 @@ export class TeamsBot extends Bot {
     super(botSettings, onEvent);
     this.recordingPath = "./recording.webm";
     this.contentType = "video/webm";
-    this.url = `https://teams.microsoft.com/v2/?meetingjoin=true#/l/meetup-join/19:meeting_${this.settings.meetingInfo.meetingId}@thread.v2/0?context=%7b%22Tid%22%3a%22${this.settings.meetingInfo.tenantId}%22%2c%22Oid%22%3a%22${this.settings.meetingInfo.organizerId}%22%7d&anon=true`;
+    
+    // Use the meeting URL directly if provided, otherwise construct it from individual parameters
+    if (this.settings.meetingInfo.meetingUrl) {
+      this.url = this.settings.meetingInfo.meetingUrl;
+      console.log("Using meeting URL:", this.url);
+
+    } else if (this.settings.meetingInfo.meetingId && this.settings.meetingInfo.tenantId && this.settings.meetingInfo.organizerId) {
+      // Fallback to the old method for backward compatibility
+      this.url = `https://teams.microsoft.com/v2/?meetingjoin=true#/l/meetup-join/19:meeting_${this.settings.meetingInfo.meetingId}@thread.v2/0?context=%7b%22Tid%22%3a%22${this.settings.meetingInfo.tenantId}%22%2c%22Oid%22%3a%22${this.settings.meetingInfo.organizerId}%22%7d&anon=true`;
+    } else {
+      throw new Error("Either meetingUrl or (meetingId, tenantId, and organizerId) must be provided");
+    }
+    
     this.participants = [];
     this.participantsIntervalId = setInterval(() => { }, 0);
   }
@@ -86,6 +98,24 @@ export class TeamsBot extends Bot {
     console.log('Opened Page');
   }
 
+  async tryClickWithTimeout(selector: string, timeoutMs: number, description: string): Promise<boolean> {
+    const startTime = Date.now();
+    let success = false;
+    
+    while (Date.now() - startTime < timeoutMs && !success) {
+      try {
+        await this.page.locator(selector).click();
+        console.log(`Successfully ${description}`);
+        success = true;
+      } catch (error) {
+        console.log(`Retrying ${description}...`);
+        // Use page.evaluate to create a delay instead of waitForTimeout
+        await this.page.evaluate(() => new Promise(resolve => setTimeout(resolve, 1000)));
+      }
+    }
+    
+    return success;
+  }
 
   async joinMeeting() {
 
@@ -95,6 +125,17 @@ export class TeamsBot extends Bot {
     const urlObj = new URL(this.url);
     console.log("Navigating to URL:", urlObj.href);
     await this.page.goto(urlObj.href);
+
+    // Try to click the join on web button with a 15-second timeout
+    const joinedOnWeb = await this.tryClickWithTimeout(
+      `[data-tid="joinOnWeb"]`, 
+      15000, 
+      'joined on Web'
+    );
+    
+    if (!joinedOnWeb) {
+      console.log('Could not click "Join on Web" button within timeout, continuing...');
+    }
 
     // Fill in the display name
     await this.page
