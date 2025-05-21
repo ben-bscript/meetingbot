@@ -7,8 +7,7 @@ import { Bot } from "../../src/bot";
 import path from "path";
 import { Transform } from "stream";
 
-const leaveButtonSelector = 'button#hangup-button, button[data-inp="hangup-button"], button[aria-label="Leave"], [data-tid="call-leave-button"], button[aria-label="Leave (Ctrl+Shift+H)"], button[aria-label="Leave (⌘+Shift+H)"]';
-
+const leaveButtonSelector = 'button#hangup-button, button[data-inp="hangup-button"], button[data-tid="hangup-button"], button[aria-label="Leave"], [data-tid="call-leave-button"], button[aria-label="Leave (Ctrl+Shift+H)"], button[aria-label="Leave (⌘+Shift+H)"],button[aria-label="Leave"], button[data-tid][data-inp="hangup-button"]';
 export class TeamsBot extends Bot {
   lastParticipantCount: number;
   aloneStartTime: number | null;
@@ -17,6 +16,7 @@ export class TeamsBot extends Bot {
   url: string;
   participants: string[];
   participantsIntervalId: NodeJS.Timeout;
+  meetingStatusCheckId: NodeJS.Timeout;
   browser!: Browser;
   page!: Page;
   file!: fs.WriteStream;
@@ -57,6 +57,7 @@ export class TeamsBot extends Bot {
     
     this.participants = [];
     this.participantsIntervalId = setInterval(() => { }, 0);
+    this.meetingStatusCheckId = setInterval(() => { }, 0);
     this.lastParticipantCount = 0;
     this.aloneStartTime = null;
   }
@@ -442,18 +443,72 @@ export class TeamsBot extends Bot {
 
     await this.startRecording();
 
+    // Periodic check for meeting status in parallel with waiting for the leave button
+    this.meetingStatusCheckId = setInterval(async () => {
+      try {
+        const isMeetingActive = await this.checkMeetingStatus();
+        if (!isMeetingActive) {
+          console.log("Meeting detected as ended during status check");
+          clearInterval(this.meetingStatusCheckId);
+          await this.endLife();
+        }
+      } catch (error) {
+        console.log("Error in meeting status check interval:", error);
+      }
+    }, 10000); // Check every 10 seconds
+
     // Then wait for meeting to end by watching for the "Leave" button to disappear
     await this.page.waitForFunction(
       (selector) => !document.querySelector(selector),
       { timeout: 0 }, // wait indefinitely
       leaveButtonSelector
-    );
-    console.log("Meeting ended");
+    ).catch(error => {
+      console.log("Error waiting for leave button to disappear:", error);
+    });
+    
+    console.log("Meeting ended (leave button disappeared)");
+    clearInterval(this.meetingStatusCheckId);
 
     // Clear the participants checking interval
     clearInterval(this.participantsIntervalId);
 
     this.endLife();
+  }
+
+  /**
+   * Check if the meeting is still active by examining various UI elements
+   * @returns {Promise<boolean>} true if meeting is active, false if it appears to be ended
+   */
+  async checkMeetingStatus(): Promise<boolean> {
+    try {
+      return await this.page.evaluate((leaveSelector) => {
+        // Check if leave button exists
+        const leaveButton = document.querySelector(leaveSelector);
+        if (!leaveButton) {
+          console.log("Leave button not found - meeting likely ended");
+          return false;
+        }
+             
+        // Check for the anonymous meeting end screen
+        const anonMessage = document.querySelector('[data-tid="anon-meeting-end-screen-header"]');
+        if (anonMessage) {
+          console.log("Anonymous meeting end screen detected");
+          return false;
+        }
+
+        const rejoinButton = document.querySelector('[data-tid="anon-meeting-end-screen-rejoin-button"]');
+        if (rejoinButton) {
+          console.log("Rejoin button found");
+          return false;
+        }
+
+        
+        return true;
+      }, leaveButtonSelector);
+    } catch (error) {
+      console.log("Error checking meeting status:", error);
+      return true; // Assume meeting is still active if there's an error checking
+    }
   }
 
   /**
@@ -479,6 +534,10 @@ export class TeamsBot extends Bot {
       if (this.participantsIntervalId) {
         console.log("Clearing intervals...");
         clearInterval(this.participantsIntervalId);
+      }
+      if (this.meetingStatusCheckId) {
+        console.log("Clearing meeting status check interval...");
+        clearInterval(this.meetingStatusCheckId);
       }
 
       // Finally close Browser
