@@ -142,10 +142,10 @@ export class TeamsBot extends Bot {
     console.log("Navigating to URL:", urlObj.href);
     await this.page.goto(urlObj.href);
 
-    // Try to click the join on web button with a 15-second timeout
+    // Try to click the join on web button with a 5-second timeout
     const joinedOnWeb = await this.tryClickWithTimeout(
       `[data-tid="joinOnWeb"]`, 
-      15000, 
+      5000, 
       'joined on Web'
     );
     
