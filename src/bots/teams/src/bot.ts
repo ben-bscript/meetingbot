@@ -27,8 +27,8 @@ export class TeamsBot extends Bot {
     onEvent: (eventType: EventCode, data?: any) => Promise<void>
   ) {
     super(botSettings, onEvent);
-    this.recordingPath = "./recording.webm";
-    this.contentType = "video/webm";
+    this.recordingPath = `./recording.mp3`;
+    this.contentType = "audio/mpeg";
     
     // Use the meeting URL directly if provided, otherwise construct it from individual parameters
     if (this.settings.meetingInfo.meetingUrl) {
@@ -221,22 +221,20 @@ export class TeamsBot extends Bot {
   }
 
   async startRecording() {
-
     if (!this.page) throw new Error("Page not initialized");
 
-    // Get the stream
+    // Get the stream - audio only
     this.stream = await getStream(
       this.page as any, //puppeteer type issue
-      { audio: true, video: true },
+      { audio: true, video: false },
     );
-
 
     // Create a file
     this.file = fs.createWriteStream(this.getRecordingPath());
     this.stream.pipe(this.file);
 
     // Pipe the stream to a file
-    console.log("Recording...");
+    console.log("Recording audio only...");
   }
 
   async stopRecording() {
