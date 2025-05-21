@@ -230,7 +230,17 @@ export class TeamsBot extends Bot {
     console.log('Waiting for 10 seconds...');
     await this.page.evaluate(() => new Promise(resolve => setTimeout(resolve, 10000)));
 
+    const joinButton2 = await this.page.$(`[data-tid="prejoin-join-button"]`);
+        if (joinButton2) {
+          await joinButton2.click();
+          // Wait for 10 seconds
+          console.log('Waiting for 10 seconds...');
+          await this.page.evaluate(() => new Promise(resolve => setTimeout(resolve, 10000)));
 
+        }
+        
+        console.log('Successfully clicked the Join Button');
+        joinSuccess = true;
     // Wait until join button is disabled or disappears
     try {
       console.log('Waiting for join button to be disabled or disappear...');
