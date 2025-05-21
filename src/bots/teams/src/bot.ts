@@ -208,22 +208,13 @@ export class TeamsBot extends Bot {
         await this.page.waitForSelector(`[data-tid="prejoin-join-button"]`, { visible: true, timeout: 5000 });
         
         // Get the button and click it
-        let joinButton = await this.page.$(`[data-tid="prejoin-join-button"]`);
+        const joinButton = await this.page.$(`[data-tid="prejoin-join-button"]`);
         if (!joinButton) {
           throw new Error("Join button not found even after waiting");
         }
         
         await joinButton.click();
         console.log('Successfully clicked the Join Button');
-
-          // check if the click worked
-          joinButton = await this.page.$(`[data-tid="prejoin-join-button"]`);
-          if (joinButton) {
-            await joinButton.click();
-            console.log('Successfully clicked the join again');
-
-          }
-          
         joinSuccess = true;
       } catch (err) {
         console.error(`Failed to click join button (attempt ${attempt}/${MAX_RETRIES}):`, err);
@@ -235,32 +226,33 @@ export class TeamsBot extends Bot {
       }
     }
 
-    // Wait until join button is disabled or disappears with retries
-    const MAX_BUTTON_DISABLED_RETRIES = 3;
-    let buttonDisabledSuccess = false;
-    
-    for (let attempt = 1; attempt <= MAX_BUTTON_DISABLED_RETRIES && !buttonDisabledSuccess; attempt++) {
+    // Wait for 10 seconds
+    console.log('Waiting for 10 seconds...');
+    await this.page.evaluate(() => new Promise(resolve => setTimeout(resolve, 10000)));
+
+
+    // Wait until join button is disabled or disappears
+    try {
+      console.log('Waiting for join button to be disabled or disappear...');
+      await this.page.waitForFunction(
+        (selector) => {
+          const joinButton = document.querySelector(selector);
+          return !joinButton || joinButton.hasAttribute("disabled");
+        },
+        { timeout: 10000 }, // 10 second timeout
+        '[data-tid="prejoin-join-button"]'
+      );
+      console.log('Join button is now disabled or has disappeared - successfully proceeding');
+    } catch (err) {
+      console.error('Error while waiting for join button to be disabled:', err);
+      console.warn('Join button may not have been disabled - attempting to continue anyway');
+      
+      // Take a screenshot to help diagnose the issue
       try {
-        console.log(`Waiting for join button to be disabled or disappear... (attempt ${attempt}/${MAX_BUTTON_DISABLED_RETRIES})`);
-        await this.page.waitForFunction(
-          (selector) => {
-            const joinButton = document.querySelector(selector);
-            return !joinButton || joinButton.hasAttribute("disabled");
-          },
-          { timeout: 10000 }, // 10 second timeout
-          '[data-tid="prejoin-join-button"]'
-        );
-        console.log('Join button is now disabled or has disappeared - successfully proceeding');
-        buttonDisabledSuccess = true;
-      } catch (err) {
-        console.error(`Error while waiting for join button to be disabled (attempt ${attempt}/${MAX_BUTTON_DISABLED_RETRIES}):`, err);
-              
-        if (attempt < MAX_BUTTON_DISABLED_RETRIES) {
-          console.log(`Retrying join button check in 5 seconds... (attempt ${attempt}/${MAX_BUTTON_DISABLED_RETRIES})`);
-          await new Promise(resolve => setTimeout(resolve, 5000)); // 5 second wait before retry
-        } else {
-          console.warn('Join button may not have been disabled after all retries - attempting to continue anyway');
-        }
+        await this.screenshot('join-button-state-error.png');
+        console.log('Captured screenshot of join button state issue');
+      } catch (screenshotErr) {
+        console.error('Failed to capture screenshot:', screenshotErr);
       }
     }
 
