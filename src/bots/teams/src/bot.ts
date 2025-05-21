@@ -153,19 +153,78 @@ export class TeamsBot extends Bot {
       console.log('Could not click "Join on Web" button within timeout, continuing...');
     }
 
-    // Fill in the display name
-    await this.page
-      .locator(`[data-tid="prejoin-display-name-input"]`)
-      .fill(this.settings.botDisplayName ?? "Meeting Bot");
-    console.log('Entered Display Name');
+    // Helper function for delay between retries
+    const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 5000; // 5 seconds
 
-    // Mute microphone before joining
-    await this.page.locator(`[data-tid="toggle-mute"]`).click();
-    console.log('Muted Microphone');
+    // Fill in the display name with retries
+    let displayNameSuccess = false;
+    for (let attempt = 1; attempt <= MAX_RETRIES && !displayNameSuccess; attempt++) {
+      try {
+        console.log(`Entering display name (attempt ${attempt}/${MAX_RETRIES})...`);
+        await this.page.waitForSelector(`[data-tid="prejoin-display-name-input"]`, { visible: true, timeout: 5000 });
+        await this.page
+          .locator(`[data-tid="prejoin-display-name-input"]`)
+          .fill(this.settings.botDisplayName ?? "Meeting Bot");
+        console.log('Successfully entered Display Name');
+        displayNameSuccess = true;
+      } catch (err) {
+        console.error(`Failed to enter display name (attempt ${attempt}/${MAX_RETRIES}):`, err);
+        if (attempt === MAX_RETRIES) {
+          throw new Error('Failed to join meeting: Could not enter display name after multiple attempts');
+        }
+        await wait(RETRY_DELAY);
+        console.log(`Retrying display name entry in 5 seconds...`);
+      }
+    }
 
-    // Join the meeting
-    await this.page.locator(`[data-tid="prejoin-join-button"]`).click();
-    console.log('Found & Clicked the Join Button');
+    // Mute microphone before joining with retries
+    let micMuteSuccess = false;
+    for (let attempt = 1; attempt <= MAX_RETRIES && !micMuteSuccess; attempt++) {
+      try {
+        console.log(`Muting microphone (attempt ${attempt}/${MAX_RETRIES})...`);
+        await this.page.waitForSelector(`[data-tid="toggle-mute"]`, { visible: true, timeout: 5000 });
+        await this.page.locator(`[data-tid="toggle-mute"]`).click();
+        console.log('Successfully muted Microphone');
+        micMuteSuccess = true;
+      } catch (err) {
+        console.error(`Failed to mute microphone (attempt ${attempt}/${MAX_RETRIES}):`, err);
+        if (attempt === MAX_RETRIES) {
+          console.warn('Could not mute microphone after multiple attempts. Continuing anyway.');
+          break;
+        }
+        await wait(RETRY_DELAY);
+        console.log(`Retrying microphone mute in 5 seconds...`);
+      }
+    }
+
+    // Join the meeting with retries
+    let joinSuccess = false;
+    for (let attempt = 1; attempt <= MAX_RETRIES && !joinSuccess; attempt++) {
+      try {
+        console.log(`Joining meeting (attempt ${attempt}/${MAX_RETRIES})...`);
+        // First check if join button exists and is visible
+        await this.page.waitForSelector(`[data-tid="prejoin-join-button"]`, { visible: true, timeout: 5000 });
+        
+        // Get the button and click it
+        const joinButton = await this.page.$(`[data-tid="prejoin-join-button"]`);
+        if (!joinButton) {
+          throw new Error("Join button not found even after waiting");
+        }
+        
+        await joinButton.click();
+        console.log('Successfully clicked the Join Button');
+        joinSuccess = true;
+      } catch (err) {
+        console.error(`Failed to click join button (attempt ${attempt}/${MAX_RETRIES}):`, err);
+        if (attempt === MAX_RETRIES) {
+          throw new Error('Failed to join meeting: Join button not found or click unsuccessful after multiple attempts');
+        }
+        await wait(RETRY_DELAY);
+        console.log(`Retrying join in 5 seconds...`);
+      }
+    }
 
     // Wait until join button is disabled or disappears
     await this.page.waitForFunction(
