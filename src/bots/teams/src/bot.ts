@@ -27,8 +27,7 @@ export class TeamsBot extends Bot {
     onEvent: (eventType: EventCode, data?: any) => Promise<void>
   ) {
     super(botSettings, onEvent);
-    const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '');
-    this.recordingPath = `./recording-${timestamp}.webm`;
+    this.recordingPath = "./recording.webm";
     this.contentType = "video/webm";
     
     // Use the meeting URL directly if provided, otherwise construct it from individual parameters
