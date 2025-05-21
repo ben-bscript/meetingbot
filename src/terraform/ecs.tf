@@ -137,7 +137,7 @@ resource "aws_ecs_task_definition" "server" {
       portMappings = [
         {
           containerPort = local.server_port
-          hostPort      = local.server_port
+          hostPort      = 0
           protocol      = "tcp"
         }
       ]
