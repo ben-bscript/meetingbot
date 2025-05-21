@@ -208,13 +208,22 @@ export class TeamsBot extends Bot {
         await this.page.waitForSelector(`[data-tid="prejoin-join-button"]`, { visible: true, timeout: 5000 });
         
         // Get the button and click it
-        const joinButton = await this.page.$(`[data-tid="prejoin-join-button"]`);
+        let joinButton = await this.page.$(`[data-tid="prejoin-join-button"]`);
         if (!joinButton) {
           throw new Error("Join button not found even after waiting");
         }
         
         await joinButton.click();
         console.log('Successfully clicked the Join Button');
+
+          // check if the click worked
+          joinButton = await this.page.$(`[data-tid="prejoin-join-button"]`);
+          if (joinButton) {
+            await joinButton.click();
+            console.log('Successfully clicked the join again');
+
+          }
+          
         joinSuccess = true;
       } catch (err) {
         console.error(`Failed to click join button (attempt ${attempt}/${MAX_RETRIES}):`, err);
