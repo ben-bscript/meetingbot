@@ -226,15 +226,34 @@ export class TeamsBot extends Bot {
       }
     }
 
-    // Wait until join button is disabled or disappears
-    await this.page.waitForFunction(
-      (selector) => {
-        const joinButton = document.querySelector(selector);
-        return !joinButton || joinButton.hasAttribute("disabled");
-      },
-      {},
-      '[data-tid="prejoin-join-button"]'
-    );
+    // Wait until join button is disabled or disappears with retries
+    const MAX_BUTTON_DISABLED_RETRIES = 3;
+    let buttonDisabledSuccess = false;
+    
+    for (let attempt = 1; attempt <= MAX_BUTTON_DISABLED_RETRIES && !buttonDisabledSuccess; attempt++) {
+      try {
+        console.log(`Waiting for join button to be disabled or disappear... (attempt ${attempt}/${MAX_BUTTON_DISABLED_RETRIES})`);
+        await this.page.waitForFunction(
+          (selector) => {
+            const joinButton = document.querySelector(selector);
+            return !joinButton || joinButton.hasAttribute("disabled");
+          },
+          { timeout: 10000 }, // 10 second timeout
+          '[data-tid="prejoin-join-button"]'
+        );
+        console.log('Join button is now disabled or has disappeared - successfully proceeding');
+        buttonDisabledSuccess = true;
+      } catch (err) {
+        console.error(`Error while waiting for join button to be disabled (attempt ${attempt}/${MAX_BUTTON_DISABLED_RETRIES}):`, err);
+              
+        if (attempt < MAX_BUTTON_DISABLED_RETRIES) {
+          console.log(`Retrying join button check in 5 seconds... (attempt ${attempt}/${MAX_BUTTON_DISABLED_RETRIES})`);
+          await new Promise(resolve => setTimeout(resolve, 5000)); // 5 second wait before retry
+        } else {
+          console.warn('Join button may not have been disabled after all retries - attempting to continue anyway');
+        }
+      }
+    }
 
     // Check if we're in a waiting room by checking if the join button exists and is disabled
     const joinButton = await this.page.$('[data-tid="prejoin-join-button"]');
