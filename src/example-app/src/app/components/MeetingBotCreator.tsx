@@ -122,7 +122,8 @@ export default function MeetingBotCreator() {
         platform: "teams",
         meetingId,
         organizerId: organizationId,
-        tenantId
+        tenantId,
+        meetingUrl: link,
       }
     }
 

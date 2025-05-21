@@ -7,10 +7,11 @@ import { Bot } from "../../src/bot";
 import path from "path";
 import { Transform } from "stream";
 
-const leaveButtonSelector =
-  'button[aria-label="Leave (Ctrl+Shift+H)"], button[aria-label="Leave (⌘+Shift+H)"]';
+const leaveButtonSelector = 'button#hangup-button, button[data-inp="hangup-button"], button[aria-label="Leave"], [data-tid="call-leave-button"], button[aria-label="Leave (Ctrl+Shift+H)"], button[aria-label="Leave (⌘+Shift+H)"]';
 
 export class TeamsBot extends Bot {
+  lastParticipantCount: number;
+  aloneStartTime: number | null;
   recordingPath: string;
   contentType: string;
   url: string;
@@ -56,6 +57,8 @@ export class TeamsBot extends Bot {
     
     this.participants = [];
     this.participantsIntervalId = setInterval(() => { }, 0);
+    this.lastParticipantCount = 0;
+    this.aloneStartTime = null;
   }
 
   getRecordingPath(): string {
@@ -240,10 +243,14 @@ export class TeamsBot extends Bot {
     // Stop recording
     if (this.stream) {
       console.log("Stopping recording...");
-      this.stream.destroy();
+      try {
+        this.stream.destroy();
+        console.log("Recording stream destroyed successfully");
+      } catch (error) {
+        console.log("Error destroying recording stream:", error);
+      }
     }
   }
-
 
 
   async run() {
@@ -274,7 +281,7 @@ export class TeamsBot extends Bot {
 
           const currentElements = Array.from(
             participantsList.querySelectorAll(
-              '[data-tid^="participantsInCall-"]'
+              '[data-tid^="attendeesInMeeting-"], [data-tid^="participantsInCall-"]'
             )
           );
 
@@ -291,6 +298,46 @@ export class TeamsBot extends Bot {
         });
 
         this.participants = currentParticipants;
+
+                // Check if this bot is alone in the meeting
+                const botName = this.settings.botDisplayName ?? "Meeting Bot";
+                const nonBotParticipants = this.participants.filter(name => name !== botName);
+                
+                if (nonBotParticipants.length === 0 && this.participants.length <= 1) {
+                  // Bot is alone or no one is in the meeting
+                  if (this.aloneStartTime === null) {
+                    console.log("Bot is now alone in the meeting, starting timer");
+                    this.aloneStartTime = Date.now();
+                  } else {
+                    const aloneTimeMs = Date.now() - this.aloneStartTime;
+                    console.log(`Bot is alone for ${aloneTimeMs / 1000} seconds`);
+                    
+                    if (aloneTimeMs > (this.settings.automaticLeave?.everyoneLeftTimeout || 30000)) {
+                      console.log("No other participants for too long, leaving the meeting");
+                      // Leave the meeting by clicking the leave button
+                      try {
+                        await this.page.locator(leaveButtonSelector).click();
+                        console.log("Left meeting due to no other participants");
+                      } catch (error) {
+                        console.log("Error clicking leave button:", error);
+                      }
+                    }
+                  }
+                } else {
+                  // Reset alone timer if other participants join
+                  if (this.aloneStartTime !== null) {
+                    console.log("Bot is no longer alone in the meeting, resetting timer");
+                    this.aloneStartTime = null;
+                  }
+                }
+                
+                // Track participant count changes
+                if (this.participants.length !== this.lastParticipantCount) {
+                  console.log(`Participant count changed: ${this.lastParticipantCount} -> ${this.participants.length}`);
+                  this.lastParticipantCount = this.participants.length;
+                }
+
+        
       } catch (error) {
         console.log("Error getting participants:", error);
       }
@@ -298,6 +345,7 @@ export class TeamsBot extends Bot {
 
     // Get initial participants list
     await updateParticipants();
+    console.log("Checking participants");
 
     // Then check for participants every heartbeatInterval milliseconds
     this.participantsIntervalId = setInterval(
@@ -326,27 +374,48 @@ export class TeamsBot extends Bot {
    * Ensure the filestream is closed as well.
    */
   async endLife() {
+    try {
+      // First stop recording before closing anything
+      if (this.stream) {
+        console.log("Stopping recording stream...");
+        await this.stopRecording();
+      }
+      
+      // Close File if it exists
+      if (this.file) {
+        console.log("Closing recording file...");
+        this.file.close();
+        this.file = null as any;
+      }
 
-    // Close File if it exists
-    if (this.file) {
-      this.file.close();
-      this.file = null as any;
+      // Clear any intervals or timeouts to prevent open handles
+      if (this.participantsIntervalId) {
+        console.log("Clearing intervals...");
+        clearInterval(this.participantsIntervalId);
+      }
+
+      // Finally close Browser
+      if (this.browser) {
+        console.log("Closing browser...");
+        try {
+          await this.browser.close();
+          console.log("Browser closed successfully");
+        } catch (err) {
+          console.log("Error closing browser:", err);
+        }
+
+        // Close the websocket server
+        try {
+          (await wss).close();
+          console.log("Closed websocket server");
+        } catch (err) {
+          console.log("Error closing websocket server:", err);
+        }
+      }
+      
+      console.log("Bot shutdown complete");
+    } catch (error) {
+      console.error("Error during bot shutdown:", error);
     }
-
-    // Close Browser
-    if (this.browser) {
-      await this.browser.close();
-
-      // Close the websocket server
-      (await wss).close();
-    }
-
-    // Clear any intervals or timeouts to prevent open handles
-    if (this.participantsIntervalId) {
-      clearInterval(this.participantsIntervalId);
-    }
-
-    // Delete recording
-    this.stopRecording();
   }
 }
