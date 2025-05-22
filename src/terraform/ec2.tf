@@ -46,9 +46,12 @@ resource "aws_iam_instance_profile" "ecs_instance" {
 resource "aws_launch_template" "ecs_instance" {
   name_prefix            = "${local.name}-ecs-instance-"
   image_id               = data.aws_ami.ecs_optimized.id
-  instance_type          = "t3.medium"
+  instance_type          = "t3.small"
   vpc_security_group_ids = [aws_security_group.ecs_tasks.id]
 
+  lifecycle {
+    create_before_destroy = true
+  }
   iam_instance_profile {
     name = aws_iam_instance_profile.ecs_instance.name
   }
