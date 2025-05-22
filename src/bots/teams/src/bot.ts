@@ -422,12 +422,12 @@ export class TeamsBot extends Bot {
                       try {
                         await this.page.locator(leaveButtonSelector).click();
                         clearInterval(this.participantsIntervalId);
-                        await this.endLife();
                         console.log("Left meeting due to no other participants");
+                        await this.endLife();
                       } catch (error) {
+                        console.log("Error clicking leave button:", error);
                         clearInterval(this.participantsIntervalId);
                         await this.endLife();
-                        console.log("Error clicking leave button:", error);
                       }
                     }
                   }
@@ -463,15 +463,17 @@ export class TeamsBot extends Bot {
 
 
 
-    // // Then wait for meeting to end by watching for the "Leave" button to disappear
-    // await this.page.waitForFunction(
-    //   (selector) => !document.querySelector(selector),
-    //   { timeout: 0 }, // wait indefinitely
-    //   leaveButtonSelector
-    // ).catch(error => {
-    //   console.log("Error waiting for leave button to disappear:", error);
-    // });
-    
+    // Then wait for meeting to end by watching for the "Leave" button to disappear
+    await this.page.waitForFunction(
+      (selector) => !document.querySelector(selector),
+      { timeout: 0 }, // wait indefinitely
+      leaveButtonSelector
+    ).catch(error => {
+      console.log("Error waiting for leave button to disappear:", error);
+    });
+     console.log("Meeting ended (leave button disappeared endlife)");
+
+    await this.endLife();
     // console.log("Meeting ended (leave button disappeared)");
     // clearInterval(this.meetingStatusCheckId);
 
@@ -521,6 +523,7 @@ export class TeamsBot extends Bot {
    * Ensure the filestream is closed as well.
    */
   async endLife() {
+    console.log("Ending life as was called");
     try {
       // First stop recording before closing anything
       if (this.stream) {
