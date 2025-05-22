@@ -403,11 +403,8 @@ export class TeamsBot extends Bot {
 
         this.participants = currentParticipants;
 
-                // Check if this bot is alone in the meeting
-                const botName = this.settings.botDisplayName ?? "Meeting Bot";
-                const nonBotParticipants = this.participants.filter(name => name !== botName);
-                
-                if (nonBotParticipants.length === 0 && this.participants.length <= 1) {
+                // Check if this bot is alone in the meeting              
+                if (this.participants.length <= 1) {
                   // Bot is alone or no one is in the meeting
                   if (this.aloneStartTime === null) {
                     console.log("Bot is now alone in the meeting, starting timer");
