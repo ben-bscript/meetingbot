@@ -42,7 +42,7 @@ export class TeamsBot extends Bot {
       
       console.log("Using meeting URL:", this.url);
     } else {
-      throw new Error("Either meetingUrl or (meetingId, tenantId, and organizerId) must be provided");
+      throw new Error("meetingUrl must be provided");
     }
     
     this.participants = [];
