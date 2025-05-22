@@ -1,7 +1,6 @@
 import fs from "fs";
 import puppeteer, { Browser, Page } from "puppeteer";
 import { launch, getStream, wss } from "puppeteer-stream";
-import crypto from "crypto";
 import { BotConfig, EventCode, WaitingRoomTimeoutError } from "../../src/types";
 import { Bot } from "../../src/bot";
 import path from "path";
@@ -42,15 +41,6 @@ export class TeamsBot extends Bot {
       }
       
       console.log("Using meeting URL:", this.url);
-
-    } else if (this.settings.meetingInfo.meetingId && this.settings.meetingInfo.tenantId && this.settings.meetingInfo.organizerId) {
-      // Fallback to the old method for backward compatibility
-      this.url = `https://teams.microsoft.com/v2/?meetingjoin=true#/l/meetup-join/19:meeting_${this.settings.meetingInfo.meetingId}@thread.v2/0?context=%7b%22Tid%22%3a%22${this.settings.meetingInfo.tenantId}%22%2c%22Oid%22%3a%22${this.settings.meetingInfo.organizerId}%22%7d&anon=true`;
-      
-      // Add suppressPrompt=true to the URL
-      if (!this.url.includes("suppressPrompt=true")) {
-        this.url += this.url.includes("?") ? "&suppressPrompt=true" : "?suppressPrompt=true";
-      }
     } else {
       throw new Error("Either meetingUrl or (meetingId, tenantId, and organizerId) must be provided");
     }
