@@ -348,7 +348,23 @@ export class TeamsBot extends Bot {
 
     //Create a File to record to
     this.file = fs.createWriteStream(this.getRecordingPath());
+    await this.startRecording();
 
+
+        // Periodic check for meeting status in parallel with waiting for the leave button
+        this.meetingStatusCheckId = setInterval(async () => {
+          try {
+            const isMeetingActive = await this.checkMeetingStatus();
+            if (!isMeetingActive) {
+              console.log("Meeting detected as ended during status check");
+              clearInterval(this.meetingStatusCheckId);
+              await this.endLife();
+            }
+          } catch (error) {
+            console.log("Error in meeting status check interval:", error);
+          }
+        }, 10000); // Check every 10 seconds
+    
     // Click the people button
     console.log("Opening the participants list");
     await this.page.locator('[aria-label="People"]').click();
@@ -441,30 +457,16 @@ export class TeamsBot extends Bot {
       this.settings.heartbeatInterval
     );
 
-    await this.startRecording();
 
-    // Periodic check for meeting status in parallel with waiting for the leave button
-    this.meetingStatusCheckId = setInterval(async () => {
-      try {
-        const isMeetingActive = await this.checkMeetingStatus();
-        if (!isMeetingActive) {
-          console.log("Meeting detected as ended during status check");
-          clearInterval(this.meetingStatusCheckId);
-          await this.endLife();
-        }
-      } catch (error) {
-        console.log("Error in meeting status check interval:", error);
-      }
-    }, 10000); // Check every 10 seconds
 
-    // Then wait for meeting to end by watching for the "Leave" button to disappear
-    await this.page.waitForFunction(
-      (selector) => !document.querySelector(selector),
-      { timeout: 0 }, // wait indefinitely
-      leaveButtonSelector
-    ).catch(error => {
-      console.log("Error waiting for leave button to disappear:", error);
-    });
+    // // Then wait for meeting to end by watching for the "Leave" button to disappear
+    // await this.page.waitForFunction(
+    //   (selector) => !document.querySelector(selector),
+    //   { timeout: 0 }, // wait indefinitely
+    //   leaveButtonSelector
+    // ).catch(error => {
+    //   console.log("Error waiting for leave button to disappear:", error);
+    // });
     
     console.log("Meeting ended (leave button disappeared)");
     clearInterval(this.meetingStatusCheckId);
