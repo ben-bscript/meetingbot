@@ -421,8 +421,12 @@ export class TeamsBot extends Bot {
                       // Leave the meeting by clicking the leave button
                       try {
                         await this.page.locator(leaveButtonSelector).click();
+                        clearInterval(this.participantsIntervalId);
+                        await this.endLife();
                         console.log("Left meeting due to no other participants");
                       } catch (error) {
+                        clearInterval(this.participantsIntervalId);
+                        await this.endLife();
                         console.log("Error clicking leave button:", error);
                       }
                     }
@@ -468,13 +472,12 @@ export class TeamsBot extends Bot {
     //   console.log("Error waiting for leave button to disappear:", error);
     // });
     
-    console.log("Meeting ended (leave button disappeared)");
-    clearInterval(this.meetingStatusCheckId);
+    // console.log("Meeting ended (leave button disappeared)");
+    // clearInterval(this.meetingStatusCheckId);
 
-    // Clear the participants checking interval
-    clearInterval(this.participantsIntervalId);
+    // // Clear the participants checking interval
+    // clearInterval(this.participantsIntervalId);
 
-    this.endLife();
   }
 
   /**
